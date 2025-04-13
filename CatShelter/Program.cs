@@ -1,15 +1,22 @@
 using CatShelter.Data;
 using CatShelter.Repository;
 using CatShelter.Services;
+using CatShelter.ViewModels.UserViewModels;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IValidator<CreateViewModel>, CreateViewModelValidator>();
+builder.Services.AddScoped<IValidator<EditViewModel>, EditViewModelValidator>();
+
 
 var app = builder.Build();
 

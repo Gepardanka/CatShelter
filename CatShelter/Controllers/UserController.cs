@@ -1,16 +1,23 @@
 ﻿using CatShelter.Models;
 using CatShelter.Services;
 using CatShelter.ViewModels.UserViewModels;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace CatShelter.Controllers
 {
     public class UserController : Controller
     {
         private readonly IUserService _userService;
-        public UserController(IUserService userService)
+        private readonly IValidator<CreateViewModel> _createValidator;
+        private readonly IValidator<EditViewModel> _editValidator;
+        public UserController(IUserService userService, IValidator<CreateViewModel> createValidator, IValidator<EditViewModel> editValidator)
         {
             _userService = userService;
+            _createValidator = createValidator;
+            _editValidator = editValidator;
         }
 
 
@@ -41,9 +48,14 @@ namespace CatShelter.Controllers
         [HttpPost]
         public IActionResult Create(CreateViewModel userViewModel)
         {
-            User user = CreateViewModel.ToUser(userViewModel);
-            _userService.Insert(user);
-            return Redirect($"/user/details/{user.Id}");
+            ValidationResult result = _createValidator.Validate(userViewModel);
+            if (result.IsValid) {
+                User user = CreateViewModel.ToUser(userViewModel);
+                _userService.Insert(user);
+                return Redirect($"/user/details/{user.Id}");
+            }
+            result.AddToModelState(this.ModelState);
+            return View(userViewModel);
         }
 
         [HttpGet]
@@ -51,15 +63,20 @@ namespace CatShelter.Controllers
         {
             var user = _userService.GetById(id);
             if (user == null) { return NotFound(); }
-            return View(CreateViewModel.FromUser(user));
+            return View(EditViewModel.FromUser(user));
         }
 
         [HttpPost]
-        public IActionResult Edit(CreateViewModel userViewModel)
+        public IActionResult Edit(EditViewModel userViewModel)
         {
-            User user = CreateViewModel.ToUser(userViewModel);
-            _userService.Update(user);
-            return Redirect($"/user/details/{user.Id}");
+            ValidationResult result = _editValidator.Validate(userViewModel);
+            if (result.IsValid) {
+                User user = EditViewModel.ToUser(userViewModel);
+                _userService.Update(user);
+                return Redirect($"/user/details/{user.Id}");
+            }
+            result.AddToModelState(this.ModelState);
+            return View(userViewModel);
         }
 
         [HttpGet]
@@ -81,6 +98,16 @@ namespace CatShelter.Controllers
             return View(_userService.GetAdmins().Select(UserViewModel.FromUser));
         }
 
+    }
+    public static class Extensions
+    {
+        public static void AddToModelState(this ValidationResult result, ModelStateDictionary modelState)
+        {
+            foreach (var error in result.Errors)
+            {
+                modelState.AddModelError(error.PropertyName, error.ErrorMessage);
+            }
+        }
     }
 
 }
